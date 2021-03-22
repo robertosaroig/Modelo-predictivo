@@ -1,14 +1,279 @@
 ---
-title: "Preprocesamiento"
+title: "Exploración de los datos y Preprocesamiento"
 author: "Roberto Saborit Roig"
 date: "22/3/2021"
-output: html_document
+output:
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
+  header-includes:
+  - \usepackage{makeidx}
+  - \makeindex
+  pdf_document:
+    toc: yes
+    toc_depth: 2
 ---
 
-Hola, esto es una prueba
+# Exploración de los datos
+
+Antes de comezar a generar el modelo, incluso antes del preprocesamiento, vamos a realizar una exploración de los datos con los siguientes objetivos: 
+
+- Ver si existen valores ausentes en el conjunto de datos y ver su distribución entre las distintas variables.
+- Explorar los tipos de variable y ver si necesitamos cambiar el tipo de alguna variable.
+- Ver la distribución de las variables, tanto de la respuesta como de las variables descriptivas. 
+
+## Tipos de variables 
+
+La primera comprobación que haremos será ver los tipos de variables que hay y si todas tienen el tipo de valor que le corresponde:
 
 ```{r}
+
+oasis_cross_sectional <- read.csv("oasis_cross-sectional.csv")
+oasis_longitudinal <- readxl::read_excel("oasis_longitudinal_demographics.xlsx")
+
+str(oasis_cross_sectional)
+str(oasis_longitudinal)
+
+````
+
+## Datos y valores ausentes
+
+Vamos a comprobar ahora el número de datos que tenemos y la cantidad de valores ausentes que hay:
+
+````{r}
+#El número total de filas nos indica la cantidad de medidas 
+nrow(oasis_cross_sectional)
+nrow(oasis_longitudinal)
+
+any(is.na(oasis_cross_sectional)); any(is.na(oasis_longitudinal))
+#Tenemos datos ausentes en ambos conjuntos
+#Podemos comprobar que variables tienen mayor porcentaje de NA y la cantidad total
+apply(is.na(oasis_cross_sectional), 2, mean); apply(is.na(oasis_cross_sectional), 2, sum)
+
+apply(is.na(oasis_longitudinal), 2, mean); apply(is.na(oasis_longitudinal), 2, sum)
+
+````
+
+En el caso del estudio seccional tenemos una gran cantidad de datos ausentes en las variables Educ, SES, MMSE, CDR, que suponen casi un 50% de los datos, en esas variables, esto será importante para tenerlo en cuenta al dividir los datos, y que los datos de entrenamiento o de test, no tengan un gran número de datos ausentes, ya que esto puede afectar al modelo. 
+
+En cambio en el conjunto de datos longitudinal no tenemos apenas datos ausentes, solo unos pocos en la variable SES, que es el estatus socioeconómico.
+
+
+## Distribución de la variable respuesta
+
+
+````{r}
+library(ggplot2)
+
+par(mfrow=c(1,2))
+
+table(oasis_longitudinal$Group)
+round(prop.table(table(oasis_longitudinal$Group)), 2)
+ggplot(data = oasis_longitudinal, aes(x = Group, y = ..count.., )) +
+  geom_bar() +
+  labs(title = "Longitudinal") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+table(oasis_cross_sectional$CDR)
+ggplot(data = oasis_cross_sectional, aes(x = CDR, y = ..count.., )) +
+  geom_bar() +
+  labs(title = "Seccional") +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+````
+
+Como vemos el porcentaje de converted que son aquellos que al principio del experimento no tenían demencia y en las sucesivas medidas la desarrollaron, es del 10% de los datos, estos es importante conocerlo, si desamos crear un modeo efctivo es importante que acierte más del 10% de converted, que podría acertarse si simplemente calsificamos todos los sujetos como converted. 
+
+En el caso del estudio seccional lo hemos dividido en grupos según la variable CDR que muestra si se no se tiene demencia (0), si se tiene ver-mild-dementia (0.5), mild-dementia (1) o demencia (2). 
+
+## Distribución de las variables predictoras
+
+### Variables continuas
+
+````{r}
+
+library(ggpubr)
+
+p1 <- ggplot(data = oasis_longitudinal, aes(x = Age, fill = Group)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
+      geom_rug(aes(color = Group), alpha = 0.5) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = Age, color = Group)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("Age", size = 15))
+final_plot
+
+tapply(oasis_longitudinal$Age, oasis_longitudinal$Group, mean)
+
+````
+Como se ve el grupo converted tiene una edad media significativamente más baja que las otras dos variables. 
+
+````{r}
+
+p1 <- ggplot(data = oasis_longitudinal, aes(x = eTIV, fill = Group)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
+      geom_rug(aes(color = Group), alpha = 0.5) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = eTIV, color = Group)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("eTIV", size = 15))
+final_plot
+
+tapply(oasis_longitudinal$eTIV, oasis_longitudinal$Group, mean)
+
+
+````
+
+
+````{r}
+
+p1 <- ggplot(data = oasis_longitudinal, aes(x = nWBV, fill = Group)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
+      geom_rug(aes(color = Group), alpha = 0.5) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = nWBV, color = Group)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("nWBV", size = 15))
+final_plot
+
+tapply(oasis_longitudinal$nWBV, oasis_longitudinal$Group, mean)
 
 
 
 ````
+
+En esta variabe sí se ven diferencias entre los grupos, los no dementes tienen claramente valores más altos, que los dementes y los converted. 
+
+````{r}
+
+p1 <- ggplot(data = oasis_longitudinal, aes(x = ASF, fill = Group)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
+      geom_rug(aes(color = Group), alpha = 0.5) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = ASF, color = Group)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("ASF", size = 15))
+final_plot
+
+tapply(oasis_longitudinal$ASF, oasis_longitudinal$Group, mean)
+
+````
+
+En este caso no parece haber difeencias en la distribución
+
+````{r}
+
+p1 <- ggplot(data = oasis_longitudinal, aes(x = MMSE, fill = Group)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
+      geom_rug(aes(color = Group), alpha = 0.5) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = MMSE, color = Group)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("MMSE", size = 15))
+final_plot
+
+tapply(oasis_longitudinal$MMSE, oasis_longitudinal$Group, na.rm= TRUE, mean)
+
+````
+
+````{r}
+
+p1 <- ggplot(data = oasis_longitudinal, aes(x = EDUC, fill = Group)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
+      geom_rug(aes(color = Group), alpha = 0.5) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = EDUC, color = Group)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("blue2", "orangered2", "green2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("EDUC", size = 15))
+final_plot
+
+tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, mean)
+
+````
+
+
+````{r}
+
+ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$SES, y = ..count.., fill = Group)) +
+  geom_bar() +
+  labs(title = "SES") +
+  scale_fill_manual(values = c("gray50", "orangered2", "lightblue")) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+round(prop.table(table(oasis_longitudinal$SES, oasis_longitudinal$Group)),2)
+
+
+ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$`M/F`, y = ..count.., fill = Group)) +
+  geom_bar() +
+  labs(title = "Sex") +
+  scale_fill_manual(values = c("gray50", "orangered2", "lightblue")) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+round(prop.table(table(oasis_longitudinal$`M/F`, oasis_longitudinal$Group)),2)
+
+````
+## ¿Qué variables predicen mejor la demencia?
+
+## Random forest
+
+````{r}
+
+library(randomForest)
+
+
+````
+# Preprocesamiento
+
+## Tratamiento de los valores ausentes
+
+Como vimos en la exploración de los datos hay valores ausentes, rincipalmente concentrados en las variables SES, EDUC y MMSE. Antes de seguir habría que eliminarlos ya que hay algoritmos de ML que no admiten estos valores. Tenemos dos opciones, eliminar las variables con valores ausentes o eliminar las observaciones con valores ausentes. 
+
+````{r}
+#Si eliminamos las observaciones se nos quedaría:
+nrow(na.omit(oasis_cross_sectional))
+nrow(na.omit(oasis_longitudinal))
+
+````
+
+La segunda opción para los datos seccionales no sería opción ya que nos cargaríamos 4 variables, en cambio para los longitudinales solo eliminaríamos la variable SES. Pero es verdad que solo habían 16 observaciones con valores ausentes así que en ambas opciones parece mejor opción eliminar las observaciones con valores ausentes. 
