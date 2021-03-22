@@ -1,0 +1,14 @@
+---
+title: "Preprocesamiento"
+author: "Roberto Saborit Roig"
+date: "22/3/2021"
+output: html_document
+---
+
+Hola, esto es una prueba
+
+```{r}
+
+
+
+````
