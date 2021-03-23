@@ -274,6 +274,20 @@ Como vimos en la exploración de los datos hay valores ausentes, rincipalmente c
 nrow(na.omit(oasis_cross_sectional))
 nrow(na.omit(oasis_longitudinal))
 
+oasis_longitudinal_narm=na.omit(oasis_longitudinal)
 ````
 
-La segunda opción para los datos seccionales no sería opción ya que nos cargaríamos 4 variables, en cambio para los longitudinales solo eliminaríamos la variable SES. Pero es verdad que solo habían 16 observaciones con valores ausentes así que en ambas opciones parece mejor opción eliminar las observaciones con valores ausentes. 
+La segunda opción para los datos seccionales no sería opción ya que nos cargaríamos 4 variables, en cambio para los longitudinales solo eliminaríamos la variable SES. Pero es verdad que solo habían 16 observaciones con valores ausentes así que en ambas opciones parece mejor opción eliminar las observaciones con valores ausentes.
+
+## Normalización
+
+````{r}
+
+normalize <- function(x) { 
+  return ((x - min(x)) / (max(x) - min(x)))
+  }
+
+oasis_longitudinal_n <- as.data.frame(lapply(oasis_longitudinal_narm[8:15], normalize))
+
+View(oasis_longitudinal_n)
+````
