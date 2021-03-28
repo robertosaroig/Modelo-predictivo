@@ -15,12 +15,24 @@ output:
     toc_depth: 2
 ---
 
+# Dataset
+
+Lo primero es ver que dataset vamos a utilizar, disponemos de dos conjuntos de datos para realizar el estudio, uno es una cohorte de datos longitudinal, mientras que el otro que tenemos en uno seccional. EStos conjuntos pertenecen al proyecto OASIS, que es un proyecto que pretende poner a libre disposición datos de estudios realizados en MRI. Iremos realizando el preprocesamiento en ambos conjuntos de manera paralela. Y dispondremos de los dos conjuntos para generar el modelo, probablemente utilizaremos uno como conjunto de de entrenamiento y otro para el test. Pero eso lo valoraremos más adelante en función de los resultados que obtengamos en la exploración de los datos y el preprocesamiento. 
+
+````{r}
+
+#Lo primero será cargar los datos y guardarlos en ls dataframes oasis_longitudinal y oasis_cross_seccional. 
+oasis_cross_sectional <- read.csv("oasis_cross-sectional.csv")
+oasis_longitudinal <- readxl::read_excel("oasis_longitudinal_demographics.xlsx")
+
+````
+
 # Exploración de los datos
 
 Antes de comezar a generar el modelo, incluso antes del preprocesamiento, vamos a realizar una exploración de los datos con los siguientes objetivos: 
 
 - Ver si existen valores ausentes en el conjunto de datos y ver su distribución entre las distintas variables.
-- Explorar los tipos de variable y ver si necesitamos cambiar el tipo de alguna variable.
+- Explorar los tipos de variable y ver si necesitamos cambiar la clase de alguna variable.
 - Ver la distribución de las variables, tanto de la respuesta como de las variables descriptivas. 
 
 ## Tipos de variables 
@@ -29,55 +41,77 @@ La primera comprobación que haremos será ver los tipos de variables que hay y 
 
 ```{r}
 
-oasis_cross_sectional <- read.csv("oasis_cross-sectional.csv")
-oasis_longitudinal <- readxl::read_excel("oasis_longitudinal_demographics.xlsx")
-
+#Exporamos las variables, sus tipos y vemos si es necesario cambiar algún tipo para posteriores análisis
 str(oasis_cross_sectional)
 str(oasis_longitudinal)
 
 ````
+
+Lo primero que tenemos que tener en cuenta en ambos conjuntos es que el conjunto longitudinal esta etiquetado por grupos en la variable `Group`, estos son "demented", "non demented" y "converted".Hacen referencia a sujetos con demencia, sin demencia y que desarrollaron demencia a lo largo del experimento, repectivamente. En cambio el estudio seccional no tiene estas etiquetas, pero realmente la variable `CDR` (Clasificación Clínica de Demencia), hace referencia a lo mismo, es decir, al nivel de demencia que tienen los pacientes según este test, que va desde 0 (no tiene demencia), 0.5 (demencia muy leve), 1 (demencia leve) o 2 (demencia severa). Podemos abordar el problema simplemente creando la variable `Group` y etiqutando como demented aquellos que tienen un nivel de demencia mayor de 0.  
+
+Además vemos que tenemos 2 variables más en el estudio longitudinal que son `visit`que hace referencia al número de visita de esa observación y `MR delay`, que es el tiempo que ha pasado entre visita y visita. 
+
+Por otro lado la variable Hand no aporta ninguna información ya que todos los sujetos son diestros, por tanto, la eliminaremos del conjunto:
+
+````{r}
+
+#La función levels muestra los niveles de la variable $Hand
+levels(as.factor(oasis_cross_sectional$Hand))
+levels(as.factor(oasis_longitudinal$Hand))
+
+
+````
+
+Como vemos solo existe un nivel en el factor que es "R" (Right/Diestro), por lo que no nos aportará ningún valor al modelo, pero si hay que tener en cuenta que el modelo lo habremos realizado solo en personas diestras y si esta variable tuviera importancia en la aparición de demencia los resultados podrían no ser tan precisos en personas zurdas. 
 
 ## Datos y valores ausentes
 
 Vamos a comprobar ahora el número de datos que tenemos y la cantidad de valores ausentes que hay:
 
 ````{r}
-#El número total de filas nos indica la cantidad de medidas 
-nrow(oasis_cross_sectional)
-nrow(oasis_longitudinal)
+#El número total de filas nos indica la cantidad de observaciones de cada uno de los datasets 
+nrow(oasis_cross_sectional); ncol(oasis_cross_sectional)
+nrow(oasis_longitudinal); ncol(oasis_longitudinal)
 
 any(is.na(oasis_cross_sectional)); any(is.na(oasis_longitudinal))
 #Tenemos datos ausentes en ambos conjuntos
 #Podemos comprobar que variables tienen mayor porcentaje de NA y la cantidad total
-apply(is.na(oasis_cross_sectional), 2, mean); apply(is.na(oasis_cross_sectional), 2, sum)
+apply(is.na(oasis_cross_sectional), 2, sum)
 
-apply(is.na(oasis_longitudinal), 2, mean); apply(is.na(oasis_longitudinal), 2, sum)
+apply(is.na(oasis_longitudinal), 2, sum)
 
 ````
 
-En el caso del estudio seccional tenemos una gran cantidad de datos ausentes en las variables Educ, SES, MMSE, CDR, que suponen casi un 50% de los datos, en esas variables, esto será importante para tenerlo en cuenta al dividir los datos, y que los datos de entrenamiento o de test, no tengan un gran número de datos ausentes, ya que esto puede afectar al modelo. 
+En el caso del estudio seccional tenemos una gran cantidad de datos ausentes en las variables Educ, SES, MMSE, CDR, que suponen casi un 50% de los datos, en esas variables, lo que puede suponer un problema si durante el preprocesamiento optamos por eliminar las observaciones con datos ausentes, ya que prederíamos una gran cantidad de información.  
 
-En cambio en el conjunto de datos longitudinal no tenemos apenas datos ausentes, solo unos pocos en la variable SES, que es el estatus socioeconómico.
+En cambio en el conjunto de datos longitudinal no tenemos apenas datos ausentes, solo unos pocos en la variable SES, que es el estatus socioeconómico, y solo 2 en MMSE (test de deterioro cognitivo). 
 
 
 ## Distribución de la variable respuesta
 
+Otra información importante que debemos conocer antes de comenzar con el modelo es la distribución de la variable respuesta, es decir la cantidad de observaciones que hay según los grupos que tenemos en la variable respuesta, en nuestro caso nos interesa conocer como está distribuida la variable `Group` en el estudio longitudinal y la variable `CDR` en el estudio longitudinal. Para ello vamos a generar una tabla con los datos y vamos a verlo también gráficamente:
 
 ````{r}
 library(ggplot2)
 
 par(mfrow=c(1,2))
 
+#Generamos las tablas, con datos absolutos y relativos
 table(oasis_longitudinal$Group)
 round(prop.table(table(oasis_longitudinal$Group)), 2)
+
+#Y generamos el gráfico
 ggplot(data = oasis_longitudinal, aes(x = Group, y = ..count.., )) +
   geom_bar() +
   labs(title = "Longitudinal") +
   theme_bw() +
   theme(legend.position = "bottom")
 
+#Hacemos lo mismo con el estudio seccional
 table(oasis_cross_sectional$CDR)
-ggplot(data = oasis_cross_sectional, aes(x = CDR, y = ..count.., )) +
+round(prop.table(table(oasis_cross_sectional$CDR)), 2)
+
+ggplot(data = oasis_cross_sectional, aes(x = CDR, y = ..count.., ),) +
   geom_bar() +
   labs(title = "Seccional") +
   theme_bw() +
@@ -85,18 +119,20 @@ ggplot(data = oasis_cross_sectional, aes(x = CDR, y = ..count.., )) +
 
 ````
 
-Como vemos el porcentaje de converted que son aquellos que al principio del experimento no tenían demencia y en las sucesivas medidas la desarrollaron, es del 10% de los datos, estos es importante conocerlo, si desamos crear un modeo efctivo es importante que acierte más del 10% de converted, que podría acertarse si simplemente calsificamos todos los sujetos como converted. 
+Como vemos el porcentaje de converted que son aquellos que al principio del experimento no tenían demencia y en las sucesivas medidas la desarrollaron, es del 10% de los datos, estos es importante conocerlo, si desamos crear un modelo efctivo es importante que acierte más del 10% de converted, que podría acertarse si simplemente calsificamos todos los sujetos como converted. 
 
-En el caso del estudio seccional lo hemos dividido en grupos según la variable CDR que muestra si se no se tiene demencia (0), si se tiene ver-mild-dementia (0.5), mild-dementia (1) o demencia (2). 
+En el caso del estudio seccional lo hemos dividido en grupos según la variable CDR que muestra si se no se tiene demencia, y también vemos una distribución desigual, donde los pacientes con demencia son menos que los que no tienen demencia, sobre todo aquellos que tienen demencia leve y pacientes con demencia moderada apenas hay. 
 
 ## Distribución de las variables predictoras
+
+Tras ver la distribución de la variable respuesta, nos interesa conocer la de las variables predictoras
 
 ### Variables continuas
 
 ````{r}
 
 library(ggpubr)
-
+#Creamos un gráfico para ver la distribución de la variable Age
 p1 <- ggplot(data = oasis_longitudinal, aes(x = Age, fill = Group)) +
       geom_density(alpha = 0.5) +
       scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
@@ -111,14 +147,15 @@ p2 <- ggplot(data = oasis_longitudinal, aes(x = Group, y = Age, color = Group)) 
 final_plot <- ggarrange(p1, p2, legend = "top")
 final_plot <- annotate_figure(final_plot, top = text_grob("Age", size = 15))
 final_plot
-
+#Calculamos la media y la mediana
 tapply(oasis_longitudinal$Age, oasis_longitudinal$Group, mean)
+tapply(oasis_longitudinal$Age, oasis_longitudinal$Group, median)
 
 ````
-Como se ve el grupo converted tiene una edad media significativamente más baja que las otras dos variables. 
+Como se ve el grupo converted tiene una edad media significativamente más baja que las otras dos variables, al igual que pasa con la mediana. 
 
 ````{r}
-
+#Volumen intracraneal
 p1 <- ggplot(data = oasis_longitudinal, aes(x = eTIV, fill = Group)) +
       geom_density(alpha = 0.5) +
       scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
@@ -135,13 +172,16 @@ final_plot <- annotate_figure(final_plot, top = text_grob("eTIV", size = 15))
 final_plot
 
 tapply(oasis_longitudinal$eTIV, oasis_longitudinal$Group, mean)
-
+tapply(oasis_longitudinal$eTIV, oasis_longitudinal$Group, median)
 
 ````
+
+En esta variable el grupo converted tiene una mediana significativamente más baja que las otras dos, en la media en cambio no hay tanta diferencia. La variable Nondemented tiene una media por encima de Demented, en cambio una mediana por debajo. 
 
 
 ````{r}
 
+#Volumen total normalizado
 p1 <- ggplot(data = oasis_longitudinal, aes(x = nWBV, fill = Group)) +
       geom_density(alpha = 0.5) +
       scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
@@ -158,15 +198,17 @@ final_plot <- annotate_figure(final_plot, top = text_grob("nWBV", size = 15))
 final_plot
 
 tapply(oasis_longitudinal$nWBV, oasis_longitudinal$Group, mean)
+tapply(oasis_longitudinal$nWBV, oasis_longitudinal$Group, median)
 
 
 
 ````
 
-En esta variabe sí se ven diferencias entre los grupos, los no dementes tienen claramente valores más altos, que los dementes y los converted. 
+En esta variabe sí se ven diferencias entre los grupos, los no dementes tienen valores en promedio más altos, que los dementes y los converted. 
 
 ````{r}
 
+#Atlas Scaling Factor
 p1 <- ggplot(data = oasis_longitudinal, aes(x = ASF, fill = Group)) +
       geom_density(alpha = 0.5) +
       scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
@@ -183,12 +225,15 @@ final_plot <- annotate_figure(final_plot, top = text_grob("ASF", size = 15))
 final_plot
 
 tapply(oasis_longitudinal$ASF, oasis_longitudinal$Group, mean)
+tapply(oasis_longitudinal$ASF, oasis_longitudinal$Group, median)
 
 ````
 
-En este caso no parece haber difeencias en la distribución
+En este caso no parece haber difeencias en la distribución. 
 
 ````{r}
+
+#MMSE (Test de deterioro cognitivo)
 
 p1 <- ggplot(data = oasis_longitudinal, aes(x = MMSE, fill = Group)) +
       geom_density(alpha = 0.5) +
@@ -206,11 +251,14 @@ final_plot <- annotate_figure(final_plot, top = text_grob("MMSE", size = 15))
 final_plot
 
 tapply(oasis_longitudinal$MMSE, oasis_longitudinal$Group, na.rm= TRUE, mean)
+tapply(oasis_longitudinal$MMSE, oasis_longitudinal$Group, na.rm= TRUE, median)
 
 ````
 
-````{r}
+En este caso se ven diferencias entre los que tienen demencia y los otros dos grupos, pero no entre converted y nondemented.
 
+````{r}
+#Nivel de estudios
 p1 <- ggplot(data = oasis_longitudinal, aes(x = EDUC, fill = Group)) +
       geom_density(alpha = 0.5) +
       scale_fill_manual(values = c("blue2", "orangered2", "green2")) +
@@ -227,12 +275,14 @@ final_plot <- annotate_figure(final_plot, top = text_grob("EDUC", size = 15))
 final_plot
 
 tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, mean)
+tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, median)
 
 ````
+En esta variable tambien se ven diferencias entre los sujetos con demencia y los otros dos grupos. 
 
 
 ````{r}
-
+#Status socioeconómico
 ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$SES, y = ..count.., fill = Group)) +
   geom_bar() +
   labs(title = "SES") +
@@ -242,7 +292,7 @@ ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$SES, y = ..count..,
 
 round(prop.table(table(oasis_longitudinal$SES, oasis_longitudinal$Group)),2)
 
-
+#Sexo
 ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$`M/F`, y = ..count.., fill = Group)) +
   geom_bar() +
   labs(title = "Sex") +
@@ -253,21 +303,53 @@ ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$`M/F`, y = ..count.
 round(prop.table(table(oasis_longitudinal$`M/F`, oasis_longitudinal$Group)),2)
 
 ````
-## ¿Qué variables predicen mejor la demencia?
 
 ## Random forest
 
+Para terminar el apartado del análisis exploratorio, y complementar el último punto, vamos a realizar un análisis random forest con el que descubriremos que variables predicen mejor la variable respuesta: 
+
 ````{r}
-
 library(randomForest)
+library(tidyverse)
+datos_rf <- oasis_longitudinal %>%
+            select(-`Subject ID`, -`MRI ID`, -`MR Delay`, -Visit, -Hand) %>% na.omit()
+datos_rf <- map_if(.x = datos_rf, .p = is.character, .f = as.factor) %>% as.data.frame()
+modelo_randforest <- randomForest(formula = Group ~ . ,
+                                  data = na.omit(datos_rf),
+                                  mtry = 5,
+                                  importance = TRUE, 
+                                  ntree = 1000) 
+importancia <- as.data.frame(modelo_randforest$importance)
+importancia <- rownames_to_column(importancia,var = "variable")
 
+p1 <- ggplot(data = importancia, aes(x = reorder(variable, MeanDecreaseAccuracy),
+                               y = MeanDecreaseAccuracy,
+                               fill = MeanDecreaseAccuracy)) +
+      labs(x = "variable", title = "Reducción de Accuracy") +
+      geom_col() +
+      coord_flip() +
+      theme_bw() +
+      theme(legend.position = "bottom")
+
+p2 <- ggplot(data = importancia, aes(x = reorder(variable, MeanDecreaseGini),
+                               y = MeanDecreaseGini,
+                               fill = MeanDecreaseGini)) +
+      labs(x = "variable", title = "Reducción de pureza (Gini)") +
+      geom_col() +
+      coord_flip() +
+      theme_bw() +
+      theme(legend.position = "bottom")
+ggarrange(p1, p2)
 
 ````
+
+Este análisis apunta a que las mejores variables para predecir la demencia son las CDR y MMSE.
+
 # Preprocesamiento
 
 ## Tratamiento de los valores ausentes
 
-Como vimos en la exploración de los datos hay valores ausentes, rincipalmente concentrados en las variables SES, EDUC y MMSE. Antes de seguir habría que eliminarlos ya que hay algoritmos de ML que no admiten estos valores. Tenemos dos opciones, eliminar las variables con valores ausentes o eliminar las observaciones con valores ausentes. 
+Como vimos en la exploración de los datos hay valores ausentes, rincipalmente concentrados en las variables SES, EDUC y MMSE. Antes de seguir habría que eliminarlos ya que hay algoritmos de ML que no admiten estos valores. Tenemos dos opciones, eliminar las variables con valores ausentes o eliminar las observaciones con valores ausentes. Otra opción sería realizar una imputación para no perder la información de esas variables u observaciones, imputar sería estimar los valores que faltan por medio de la información que sí tenemos. 
 
 ````{r}
 #Si eliminamos las observaciones se nos quedaría:
@@ -275,19 +357,49 @@ nrow(na.omit(oasis_cross_sectional))
 nrow(na.omit(oasis_longitudinal))
 
 oasis_longitudinal_narm=na.omit(oasis_longitudinal)
+
+#Imputación
+library(recipes)
+
+objeto_recipe <- recipe(formula = Group ~ Age + `M/F` + EDUC + SES +
+                                  MMSE + CDR + eTIV + nWBV + ASF,
+                        data =  oasis_longitudinal)
+objeto_recipe
+objeto_recipe <- objeto_recipe %>% step_bagimpute(SES)
+objeto_recipe
+
+
+
 ````
 
 La segunda opción para los datos seccionales no sería opción ya que nos cargaríamos 4 variables, en cambio para los longitudinales solo eliminaríamos la variable SES. Pero es verdad que solo habían 16 observaciones con valores ausentes así que en ambas opciones parece mejor opción eliminar las observaciones con valores ausentes.
 
-## Normalización
+## Variables con varianza cercana 0
 
+Otra parte importante del preprocesado será eliminar variables que no aporten nada, como vimos la variable Hand no se utilizará ya que no tiene diferentes niveles, pero además hay una forma de ser si las variables pueden no aortar información y es viendo si su varianza es igual o cercana a 0. Con la función `nearZeroVars`, podemos averiguar si alguna función tiene varianza cercana a 0. 
 ````{r}
 
+library(caret)
+
+oasis_longitudinal %>% select(Age, `M/F`, EDUC, SES, MMSE, CDR, eTIV, nWBV, ASF) %>% nearZeroVar(saveMetrics = TRUE)
+
+````
+
+Entre los predictores incluidos en el modelo, no se detecta ninguno con varianza cero o próxima a cero.
+
+## Normalización
+
+La normalización es un paso importante para ajustar el modelo, hay diferenctes tipos de normalización vamos a implementar dos tipos y comporbaremos cual de ellas se puede ajustar mejor. 
+
+````{r}
+# Normalización estándar
 normalize <- function(x) { 
   return ((x - min(x)) / (max(x) - min(x)))
   }
 
 oasis_longitudinal_n <- as.data.frame(lapply(oasis_longitudinal_narm[8:15], normalize))
 
-View(oasis_longitudinal_n)
+#Estandarización por puntuación Z
+oasis_longitudinal_z <- as.data.frame(scale(oasis_longitudinal_narm[8:15]))
+
 ````
