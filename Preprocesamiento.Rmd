@@ -151,8 +151,32 @@ final_plot
 tapply(oasis_longitudinal$Age, oasis_longitudinal$Group, mean)
 tapply(oasis_longitudinal$Age, oasis_longitudinal$Group, median)
 
+levels(oasis_cross_sectional$CDR)
+oasis_cross_sectional$CDR=factor(oasis_cross_sectional$CDR,levels=c(0,0.5,1,2),
+                           labels=c("Nondemented", "Demented", "Demented", "Demented"))
+
+oasis_cross_sectional_narm=na.omit(oasis_cross_sectional)
+nrow(oasis_cross_sectional_narm)
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = Age, fill = CDR)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("gray50", "orangered2")) +
+      geom_rug(aes(color = CDR), alpha = 0.5) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = CDR, y = Age, color = CDR)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("Age", size = 15))
+final_plot
+
+#Calculamos la media y la mediana
+tapply(oasis_cross_sectional_narm$Age, oasis_cross_sectional_narm$CDR, mean)
+tapply(oasis_cross_sectional_narm$Age, oasis_cross_sectional_narm$CDR, median)
 ````
-Como se ve el grupo converted tiene una edad media significativamente más baja que las otras dos variables, al igual que pasa con la mediana. 
+En el estudio longitudinal el grupo converted tiene una edad media significativamente más baja que las otras dos variables, al igual que pasa con la mediana. Mientras que en el estudio seccional la media y mediana son mayores en el grupo con demencia. 
 
 ````{r}
 #Volumen intracraneal
@@ -174,9 +198,30 @@ final_plot
 tapply(oasis_longitudinal$eTIV, oasis_longitudinal$Group, mean)
 tapply(oasis_longitudinal$eTIV, oasis_longitudinal$Group, median)
 
+
+
+
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = eTIV, fill = CDR)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("gray50", "orangered2")) +
+      geom_rug(aes(color = CDR), alpha = 0.5) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = CDR, y = eTIV, color = CDR)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("eTIV", size = 15))
+final_plot
+
+#Calculamos la media y la mediana
+tapply(oasis_cross_sectional_narm$eTIV, oasis_cross_sectional_narm$CDR, mean)
+tapply(oasis_cross_sectional_narm$eTIV, oasis_cross_sectional_narm$CDR, median)
 ````
 
-En esta variable el grupo converted tiene una mediana significativamente más baja que las otras dos, en la media en cambio no hay tanta diferencia. La variable Nondemented tiene una media por encima de Demented, en cambio una mediana por debajo. 
+En esta variable el grupo converted tiene una mediana significativamente más baja que las otras dos, en la media en cambio no hay tanta diferencia. La variable Nondemented tiene una media por encima de Demented, en cambio una mediana por debajo. En los datos seccionales no hay demasiada diferencia entre grupos. 
 
 
 ````{r}
@@ -202,9 +247,28 @@ tapply(oasis_longitudinal$nWBV, oasis_longitudinal$Group, median)
 
 
 
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = nWBV, fill = CDR)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("gray50", "orangered2")) +
+      geom_rug(aes(color = CDR), alpha = 0.5) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = CDR, y = nWBV, color = CDR)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("nWBV", size = 15))
+final_plot
+
+#Calculamos la media y la mediana
+tapply(oasis_cross_sectional_narm$nWBV, oasis_cross_sectional_narm$CDR, mean)
+tapply(oasis_cross_sectional_narm$nWBV, oasis_cross_sectional_narm$CDR, median)
+
 ````
 
-En esta variabe sí se ven diferencias entre los grupos, los no dementes tienen valores en promedio más altos, que los dementes y los converted. 
+En esta variabe sí se ven diferencias entre los grupos, los no dementes tienen valores en promedio más altos, que los dementes y los converted. En este caso la diferencia entre grupos es más significativa, en los datos seccionales. 
 
 ````{r}
 
@@ -227,9 +291,30 @@ final_plot
 tapply(oasis_longitudinal$ASF, oasis_longitudinal$Group, mean)
 tapply(oasis_longitudinal$ASF, oasis_longitudinal$Group, median)
 
+
+
+
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = ASF, fill = CDR)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("gray50", "orangered2")) +
+      geom_rug(aes(color = CDR), alpha = 0.5) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = CDR, y = ASF, color = CDR)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("ASF", size = 15))
+final_plot
+
+#Calculamos la media y la mediana
+tapply(oasis_cross_sectional_narm$ASF, oasis_cross_sectional_narm$CDR, mean)
+tapply(oasis_cross_sectional_narm$ASF, oasis_cross_sectional_narm$CDR, median)
 ````
 
-En este caso no parece haber difeencias en la distribución. 
+En este caso no parece haber diferencias en la distribución. 
 
 ````{r}
 
@@ -253,9 +338,31 @@ final_plot
 tapply(oasis_longitudinal$MMSE, oasis_longitudinal$Group, na.rm= TRUE, mean)
 tapply(oasis_longitudinal$MMSE, oasis_longitudinal$Group, na.rm= TRUE, median)
 
+
+
+
+
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = MMSE, fill = CDR)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("gray50", "orangered2")) +
+      geom_rug(aes(color = CDR), alpha = 0.5) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = CDR, y = MMSE, color = CDR)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("MMSE", size = 15))
+final_plot
+
+#Calculamos la media y la mediana
+tapply(oasis_cross_sectional_narm$MMSE, oasis_cross_sectional_narm$CDR, mean)
+tapply(oasis_cross_sectional_narm$MMSE, oasis_cross_sectional_narm$CDR, median)
 ````
 
-En este caso se ven diferencias entre los que tienen demencia y los otros dos grupos, pero no entre converted y nondemented.
+En este caso se ven diferencias entre los que tienen demencia y los otros dos grupos, pero no entre converted y nondemented. En el caso de los datos seccionales hay una diferencia significativa entre los grupos. 
 
 ````{r}
 #Nivel de estudios
@@ -277,8 +384,28 @@ final_plot
 tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, mean)
 tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, median)
 
+
+oasis_cross_sectional_narm$EDUC=oasis_cross_sectional_narm$Educ
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = EDUC, fill = CDR)) +
+      geom_density(alpha = 0.5) +
+      scale_fill_manual(values = c("gray50", "orangered2")) +
+      geom_rug(aes(color = CDR), alpha = 0.5) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = CDR, y = EDUC, color = CDR)) +
+      geom_boxplot(outlier.shape = NA) +
+      geom_jitter(alpha = 0.3, width = 0.15) +
+      scale_color_manual(values = c("gray50", "orangered2")) +
+      theme_bw()
+final_plot <- ggarrange(p1, p2, legend = "top")
+final_plot <- annotate_figure(final_plot, top = text_grob("EDUC", size = 15))
+final_plot
+
+#Calculamos la media y la mediana
+tapply(oasis_cross_sectional_narm$EDUC, oasis_cross_sectional_narm$CDR, mean)
+tapply(oasis_cross_sectional_narm$EDUC, oasis_cross_sectional_narm$CDR, median)
 ````
-En esta variable tambien se ven diferencias entre los sujetos con demencia y los otros dos grupos. 
+En esta variable también se ven diferencias entre los sujetos con demencia y los otros dos grupos. En el caso de los datos seccionales también se ven diferencias. 
 
 
 ````{r}
@@ -302,7 +429,31 @@ ggplot(data = oasis_longitudinal, aes(x = oasis_longitudinal$`M/F`, y = ..count.
 
 round(prop.table(table(oasis_longitudinal$`M/F`, oasis_longitudinal$Group)),2)
 
+
+#Status socioeconómico
+ggplot(data = oasis_cross_sectional_narm, aes(x = oasis_cross_sectional_narm$SES, y = ..count.., fill = CDR)) +
+  geom_bar() +
+  labs(title = "SES") +
+  scale_fill_manual(values = c("gray50", "orangered2")) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+round(prop.table(table(oasis_cross_sectional_narm$SES, oasis_cross_sectional_narm$CDR)),2)
+
+#Sexo
+oasis_cross_sectional_narm$`M/F`=oasis_cross_sectional_narm$M.F
+ggplot(data = oasis_cross_sectional_narm, aes(x = oasis_cross_sectional_narm$`M/F`, y = ..count.., fill = CDR)) +
+  geom_bar() +
+  labs(title = "Sex") +
+  scale_fill_manual(values = c("gray50", "orangered2", "lightblue")) +
+  theme_bw() +
+  theme(legend.position = "bottom")
+
+round(prop.table(table(oasis_cross_sectional_narm$`M/F`, oasis_cross_sectional_narm$CDR)),2)
+
 ````
+
+En este caso en los datos longitudinales parece haber diferencias en la variable sex pero no en la SES, mientras que en los seccionales parece haber diferencias en ambas. 
 
 ## Random forest
 
@@ -313,6 +464,39 @@ library(randomForest)
 library(tidyverse)
 datos_rf <- oasis_longitudinal %>%
             select(-`Subject ID`, -`MRI ID`, -`MR Delay`, -Visit, -Hand) %>% na.omit()
+datos_rf <- map_if(.x = datos_rf, .p = is.character, .f = as.factor) %>% as.data.frame()
+modelo_randforest <- randomForest(formula = Group ~ . ,
+                                  data = na.omit(datos_rf),
+                                  mtry = 5,
+                                  importance = TRUE, 
+                                  ntree = 1000) 
+importancia <- as.data.frame(modelo_randforest$importance)
+importancia <- rownames_to_column(importancia,var = "variable")
+
+p1 <- ggplot(data = importancia, aes(x = reorder(variable, MeanDecreaseAccuracy),
+                               y = MeanDecreaseAccuracy,
+                               fill = MeanDecreaseAccuracy)) +
+      labs(x = "variable", title = "Reducción de Accuracy") +
+      geom_col() +
+      coord_flip() +
+      theme_bw() +
+      theme(legend.position = "bottom")
+
+p2 <- ggplot(data = importancia, aes(x = reorder(variable, MeanDecreaseGini),
+                               y = MeanDecreaseGini,
+                               fill = MeanDecreaseGini)) +
+      labs(x = "variable", title = "Reducción de pureza (Gini)") +
+      geom_col() +
+      coord_flip() +
+      theme_bw() +
+      theme(legend.position = "bottom")
+ggarrange(p1, p2)
+
+
+oasis_cross_sectional_narm$Group=oasis_cross_sectional_narm$CDR
+
+datos_rf <- oasis_cross_sectional_narm %>%
+            select(-ID, -Hand, -CDR) %>% na.omit()
 datos_rf <- map_if(.x = datos_rf, .p = is.character, .f = as.factor) %>% as.data.frame()
 modelo_randforest <- randomForest(formula = Group ~ . ,
                                   data = na.omit(datos_rf),
@@ -367,8 +551,6 @@ objeto_recipe <- recipe(formula = Group ~ Age + `M/F` + EDUC + SES +
 objeto_recipe
 objeto_recipe <- objeto_recipe %>% step_bagimpute(SES)
 objeto_recipe
-
-
 
 ````
 
