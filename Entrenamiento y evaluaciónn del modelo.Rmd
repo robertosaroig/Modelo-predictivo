@@ -1,0 +1,51 @@
+---
+title: "Entrenamiento y evaluación del modelo"
+author: "Roberto Saborit Roig"
+date: "30/3/2021"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+  header-includes:
+  - \usepackage{makeidx}
+  - \makeindex
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
+---
+
+# Selección de predictores
+
+# Entrenamiento del modelo
+
+## Algoritmo Bayesiano
+
+```{r}
+library(e1071)
+oasis_classifier <- naiveBayes(oasis_longitudinal_n4, labels_longitudinal)
+pred_oasis <- predict(oasis_classifier, oasis_cross_sectional_n4)
+
+library(gmodels)
+CrossTable(pred_oasis, labels_seccional, prop.chisq = FALSE, prop.t = FALSE,
+dnn = c('predicted', 'actual'))
+
+library(caret)
+confusionMatrix(labels_seccional, pred_oasis, positive = "Demented")
+
+
+
+```
+
+
+
+# Evaluación del modelo
+
+
+
+
+```{r}
+
+
+ddasd
+```
