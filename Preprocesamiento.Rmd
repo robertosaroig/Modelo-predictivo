@@ -3,21 +3,21 @@ title: "Exploración de los datos y Preprocesamiento"
 author: "Roberto Saborit Roig"
 date: "22/3/2021"
 output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+  header-includes:
+  - \usepackage{makeidx}
+  - \makeindex
   html_document:
     toc: yes
     toc_depth: '2'
     df_print: paged
-  header-includes:
-  - \usepackage{makeidx}
-  - \makeindex
-  pdf_document:
-    toc: yes
-    toc_depth: 2
 ---
 
 # Dataset
 
-Lo primero es ver que dataset vamos a utilizar, disponemos de dos conjuntos de datos para realizar el estudio, uno es una cohorte de datos longitudinal, mientras que el otro que tenemos en uno seccional. EStos conjuntos pertenecen al proyecto OASIS, que es un proyecto que pretende poner a libre disposición datos de estudios realizados en MRI. Iremos realizando el preprocesamiento en ambos conjuntos de manera paralela. Y dispondremos de los dos conjuntos para generar el modelo, probablemente utilizaremos uno como conjunto de de entrenamiento y otro para el test. Pero eso lo valoraremos más adelante en función de los resultados que obtengamos en la exploración de los datos y el preprocesamiento. 
+Lo primero es ver que dataset vamos a utilizar, disponemos de dos conjuntos de datos para realizar el estudio, uno es una cohorte de datos longitudinal, mientras que el otro que tenemos en uno seccional. Estos conjuntos pertenecen al proyecto OASIS, que es un proyecto que pretende poner a libre disposición datos de estudios realizados en MRI, donde tenemos una sere de pacientes clasificados como que tienen demencia o no, que utilizaremos como variable respuesta, y variables neuropsicológicas, demográficas y de neuroimagen, que nos servirá como variables predictoras. Iremos realizando el preprocesamiento en ambos conjuntos de manera paralela. Y dispondremos de los dos conjuntos para generar el modelo, probablemente utilizaremos uno como conjunto de de entrenamiento y otro para el test. Pero eso lo valoraremos más adelante en función de los resultados que obtengamos en la exploración de los datos y el preprocesamiento. 
 
 ````{r}
 
@@ -47,11 +47,27 @@ str(oasis_longitudinal)
 
 ````
 
-Lo primero que tenemos que tener en cuenta en ambos conjuntos es que el conjunto longitudinal esta etiquetado por grupos en la variable `Group`, estos son "demented", "non demented" y "converted".Hacen referencia a sujetos con demencia, sin demencia y que desarrollaron demencia a lo largo del experimento, repectivamente. En cambio el estudio seccional no tiene estas etiquetas, pero realmente la variable `CDR` (Clasificación Clínica de Demencia), hace referencia a lo mismo, es decir, al nivel de demencia que tienen los pacientes según este test, que va desde 0 (no tiene demencia), 0.5 (demencia muy leve), 1 (demencia leve) o 2 (demencia severa). Podemos abordar el problema simplemente creando la variable `Group` y etiqutando como demented aquellos que tienen un nivel de demencia mayor de 0.  
+Las variables que encontramos son las siguientes:
+
+- *ID o subject ID*: La identificación del paciente. 
+- *MRI ID*: La identificación del paciente y el número de visita de ese paciente, a la resonancia magnética (MRI). 
+- *Visit*: Número de visita.
+- *MR Delay*: Días que transcurrieron desde la última visita al MRI.
+- *M/F*: Sexo.
+- *Age*: Edad.
+- *EDUC*: Nivel de estudios. 
+- *SES*: Estatus socioeconómico.
+- *MMSE*: Test minimental state. Prueba que indica el nivel de deterioro cognitivo del paciente. 
+- *CDR*: Clinical dementia ratio. Índice de demencia (leve, muy leve, moderada...)
+- *eTIV*: Volumen intracraneal.
+- *nWBV*: Volumen intracraneal normalizado.
+- *ASF*: Atlas Scaling Factor.
+
+Lo primero que tenemos que tener en cuenta en ambos conjuntos es que el conjunto longitudinal esta etiquetado por grupos en la variable `Group`, estos son "demented", "non demented" y "converted".Hacen referencia a sujetos con demencia, sin demencia y que desarrollaron demencia a lo largo del experimento, repectivamente. En cambio el estudio seccional no tiene estas etiquetas, pero realmente la variable `CDR` (Clasificación Clínica de Demencia), hace referencia a lo mismo, es decir, al nivel de demencia que tienen los pacientes según este test, que va desde 0 (no tiene demencia), 0.5 (demencia muy leve), 1 (demencia leve) o 2 (demencia moderada). Podemos abordar el problema simplemente creando la variable `Group` y etiqutando como demented aquellos que tienen un nivel de demencia mayor de 0.  
 
 Además vemos que tenemos 2 variables más en el estudio longitudinal que son `visit`que hace referencia al número de visita de esa observación y `MR delay`, que es el tiempo que ha pasado entre visita y visita. 
 
-Por otro lado la variable Hand no aporta ninguna información ya que todos los sujetos son diestros, por tanto, la eliminaremos del conjunto:
+Por otro lado la variable Hand no aporta ninguna información ya que todos los sujetos son diestros, por tanto, la eliminaremos del conjunto, más adelante en el preprocesamiento cuando decidamos las variables que utilizaremos como predictores:
 
 ````{r}
 
@@ -61,12 +77,11 @@ levels(as.factor(oasis_longitudinal$Hand))
 
 
 ````
-
 Como vemos solo existe un nivel en el factor que es "R" (Right/Diestro), por lo que no nos aportará ningún valor al modelo, pero si hay que tener en cuenta que el modelo lo habremos realizado solo en personas diestras y si esta variable tuviera importancia en la aparición de demencia los resultados podrían no ser tan precisos en personas zurdas. 
 
 ## Datos y valores ausentes
 
-Vamos a comprobar ahora el número de datos que tenemos y la cantidad de valores ausentes que hay:
+Vamos a comprobar ahora el número de observaciones y variables que tenemos, comprobando el número de filas y columnas que tienen nuestros datos y la cantidad de valores ausentes que hay, porque muchos modelos de machine learning no aceptan NAs, y en que variables están estos NA, ya que esto será importante para saber como tratar estos valores, si podemos eliminar simplemente las observaciones o los tratamos de otra manera:
 
 ````{r}
 #El número total de filas nos indica la cantidad de observaciones de cada uno de los datasets 
@@ -75,16 +90,16 @@ nrow(oasis_longitudinal); ncol(oasis_longitudinal)
 
 any(is.na(oasis_cross_sectional)); any(is.na(oasis_longitudinal))
 #Tenemos datos ausentes en ambos conjuntos
-#Podemos comprobar que variables tienen mayor porcentaje de NA y la cantidad total
+#Podemos comprobar que variables tienen mayor cantidad de NA
 apply(is.na(oasis_cross_sectional), 2, sum)
 
 apply(is.na(oasis_longitudinal), 2, sum)
 
 ````
 
-En el caso del estudio seccional tenemos una gran cantidad de datos ausentes en las variables Educ, SES, MMSE, CDR, que suponen casi un 50% de los datos, en esas variables, lo que puede suponer un problema si durante el preprocesamiento optamos por eliminar las observaciones con datos ausentes, ya que prederíamos una gran cantidad de información.  
+En el caso del estudio seccional tenemos una gran cantidad de datos ausentes en las variables Educ, SES, MMSE, CDR, que suponen casi un 50% de los datos, en esas variables, lo que puede suponer un problema si durante el preprocesamiento optamos por eliminar las observaciones con datos ausentes, ya que prederíamos una gran cantidad de información. El problema es que tenemos los valores ausentes en la variable CDR que será la variable respuesta en este conjunto de datos, por tanto, habrá que eliminar las observaciones con datos ausentes, al menos que sean ausentes en la variable CDR. 
 
-En cambio en el conjunto de datos longitudinal no tenemos apenas datos ausentes, solo unos pocos en la variable SES, que es el estatus socioeconómico, y solo 2 en MMSE (test de deterioro cognitivo). 
+En cambio en el conjunto de datos longitudinal no tenemos apenas datos ausentes, solo unos pocos en la variable SES, que es el estatus socioeconómico, y solo 2 en MMSE (test de deterioro cognitivo). Seguramente también eliminemos las observaciones con NAs, ya que son pocas y no perderemos demasiada información haciendo esto. 
 
 
 ## Distribución de la variable respuesta
@@ -123,7 +138,7 @@ Como vemos el porcentaje de converted que son aquellos que al principio del expe
 
 En el caso del estudio seccional lo hemos dividido en grupos según la variable CDR que muestra si se no se tiene demencia, y también vemos una distribución desigual, donde los pacientes con demencia son menos que los que no tienen demencia, sobre todo aquellos que tienen demencia leve y pacientes con demencia moderada apenas hay. 
 
-Antes de continuar vamos a eliminar los valores de CDR=2, ya que nos interesa detectar la demencia en estado preclínico (con valores de CDR<2), así que trataremos de comparar personas sin demencia y con demencia en estado muy leve y leve. Des esta forma también nos quitaremos los valores ausentes que haya en nuestra variable respuesta, que no ibamos a poder imputarlos. 
+Antes de continuar vamos a eliminar los valores de CDR=2, ya que nos interesa detectar la demencia en estado leve y muy leve por tanto queremos solo los valores de CDR<2, así clasificaremos personas sin demencia por un lado y con demencia en estado muy leve y leve. De esta forma también nos quitaremos los valores ausentes que haya en nuestra variable respuesta, que no ibamos a poder imputarlos. 
 
 ````{r}
 library(dplyr)
@@ -134,8 +149,6 @@ oasis_cross_sectional_2=filter(oasis_cross_sectional, CDR<2)
 ## Distribución de las variables predictoras
 
 Tras ver la distribución de la variable respuesta, nos interesa conocer la de las variables predictoras
-
-### Variables continuas
 
 ````{r}
 
@@ -392,15 +405,13 @@ final_plot
 tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, mean)
 tapply(oasis_longitudinal$EDUC, oasis_longitudinal$Group, na.rm= TRUE, median)
 
-
-oasis_cross_sectional_narm$EDUC=oasis_cross_sectional_narm$Educ
-p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = EDUC, fill = Group)) +
+p1 <- ggplot(data = oasis_cross_sectional_narm, aes(x = Educ, fill = Group)) +
       geom_density(alpha = 0.5) +
       scale_fill_manual(values = c("gray50", "orangered2")) +
       geom_rug(aes(color = Group), alpha = 0.5) +
       scale_color_manual(values = c("gray50", "orangered2")) +
       theme_bw()
-p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = Group, y = EDUC, color = Group)) +
+p2 <- ggplot(data = oasis_cross_sectional_narm, aes(x = Group, y = Educ, color = Group)) +
       geom_boxplot(outlier.shape = NA) +
       geom_jitter(alpha = 0.3, width = 0.15) +
       scale_color_manual(values = c("gray50", "orangered2")) +
@@ -410,8 +421,8 @@ final_plot <- annotate_figure(final_plot, top = text_grob("EDUC", size = 15))
 final_plot
 
 #Calculamos la media y la mediana
-tapply(oasis_cross_sectional_narm$EDUC, oasis_cross_sectional_narm$Group, mean)
-tapply(oasis_cross_sectional_narm$EDUC, oasis_cross_sectional_narm$Group, median)
+tapply(oasis_cross_sectional_narm$Educ, oasis_cross_sectional_narm$Group, mean)
+tapply(oasis_cross_sectional_narm$Educ, oasis_cross_sectional_narm$Group, median)
 ````
 En esta variable también se ven diferencias entre los sujetos con demencia y los otros dos grupos. En el caso de los datos seccionales también se ven diferencias. 
 
@@ -461,7 +472,7 @@ round(prop.table(table(oasis_cross_sectional_narm$`M/F`, oasis_cross_sectional_n
 
 ````
 
-En este caso en los datos longitudinales parece haber diferencias en la variable sex pero no en la SES, mientras que en los seccionales parece haber diferencias en ambas. 
+En este caso en los datos longitudinales parece haber diferencias en la variable M/F pero no en la SES, mientras que en los seccionales parece haber diferencias en ambas. 
 
 ## Random forest
 
@@ -472,7 +483,7 @@ library(randomForest)
 library(tidyverse)
 #Seleccionamos las variables y generamos el análisis random forest
 datos_rf <- oasis_longitudinal %>%
-            select(-`Subject ID`, -`MRI ID`, -`MR Delay`, -Visit, -Hand) %>% na.omit()
+            select(-`Subject ID`, -`MRI ID`, -`MR Delay`, -Visit, -Hand, -CDR) %>% na.omit()
 datos_rf <- map_if(.x = datos_rf, .p = is.character, .f = as.factor) %>% as.data.frame()
 modelo_randforest <- randomForest(formula = Group ~ . ,
                                   data = na.omit(datos_rf),
@@ -534,34 +545,30 @@ ggarrange(p1, p2)
 
 ````
 
-Este análisis apunta a que las mejores variables para predecir la demencia son las CDR y MMSE.
+Este análisis apunta a que las mejores variables para predecir la demencia son MMSE y nWBV.
 
 # Preprocesamiento
 
 ## Tratamiento de los valores ausentes
 
-Como vimos en la exploración de los datos hay valores ausentes, rincipalmente concentrados en las variables SES, EDUC y MMSE. Antes de seguir habría que eliminarlos ya que hay algoritmos de ML que no admiten estos valores. Tenemos dos opciones, eliminar las variables con valores ausentes o eliminar las observaciones con valores ausentes. Otra opción sería realizar una imputación para no perder la información de esas variables u observaciones, imputar sería estimar los valores que faltan por medio de la información que sí tenemos. 
+Como vimos en la exploración de los datos hay valores ausentes, rincipalmente concentrados en las variables SES, EDUC y MMSE. Antes de seguir habría que eliminarlos ya que hay algoritmos de ML que no admiten estos valores. Tenemos dos opciones, eliminar las variables con valores ausentes o eliminar las observaciones con valores ausentes. El del conjunto seccional ya lo habíamos eliminado para visualizar la distribución de las variables así que solo lo haremos con el longitudinal. 
+
+También vamos a eliminar del conjunto longitudinal las observaciones "converted", ya que queremos solo demencia y no demencia para hacer una clasificación y nos quedaremos solo con una observación por individuo. 
 
 ````{r}
-#Si eliminamos las observaciones se nos quedaría:
-nrow(na.omit(oasis_cross_sectional))
-nrow(na.omit(oasis_longitudinal))
-
-oasis_longitudinal_narm=na.omit(oasis_longitudinal)
-
-#Imputación
-library(recipes)
-
-objeto_recipe <- recipe(formula = Group ~ Age + `M/F` + EDUC + SES +
-                                  MMSE + CDR + eTIV + nWBV + ASF,
-                        data =  oasis_longitudinal)
-objeto_recipe
-objeto_recipe <- objeto_recipe %>% step_bagimpute(SES)
-objeto_recipe
+# Eliminamos los NAs
+oasis_longitudinal_narm=na.omit(oasis_longitudinal) 
+# Eliminamos las observaciones "Converted" y escogemos solo la primera visita de cada paciente
+library(dplyr)
+oasis_longitudinal_narm_2=filter(oasis_longitudinal_narm, Group!="Converted", Visit==1)
+table(oasis_longitudinal_narm_2$Group)
+table(oasis_cross_sectional_narm$Group)
+nrow(na.omit(oasis_cross_sectional_narm))
+nrow(na.omit(oasis_longitudinal_narm_2))
 
 ````
 
-La segunda opción para los datos seccionales no sería opción ya que nos cargaríamos 4 variables, en cambio para los longitudinales solo eliminaríamos la variable SES. Pero es verdad que solo habían 16 observaciones con valores ausentes así que en ambas opciones parece mejor opción eliminar las observaciones con valores ausentes.
+Tenemos 214 observaciones en el seccional y 128 en el longitudinal. Ya que tenemos el doble en el seccional lo utilizaremos como datos para el entrenamiento y el longitudinal como datos para el test. Como vemos hay más datos Nondemented que demented. 
 
 ## Variables con varianza cercana 0
 
@@ -574,15 +581,13 @@ oasis_longitudinal %>% select(Age, `M/F`, EDUC, SES, MMSE, CDR, eTIV, nWBV, ASF)
 
 ````
 
-Entre los predictores incluidos en el modelo, no se detecta ninguno con varianza cero o próxima a cero.
+Entre los predictores incluidos en el modelo, no se detecta ninguno con varianza cero o próxima a cero. Por lo que no vamos a eliminar por este motivo ninguna variable. 
 
 ## Normalización
 
-La normalización es un paso importante para ajustar el modelo, hay diferenctes tipos de normalización vamos a implementar dos tipos y comporbaremos cual de ellas se puede ajustar mejor. 
+La normalización es un paso importante para ajustar el modelo, y que la escala de las variables no de mayor peso a aquellas con números más grandes. 
 
 ````{r}
-#Primero eliminamos la variable converted del conjunto de datos que no utilizaremos. 
-oasis_longitudinal_narm_2=filter(oasis_longitudinal_narm, Group != "Converted")
 
 #Normalización estándar
 normalize <- function(x) { 
@@ -591,40 +596,350 @@ normalize <- function(x) {
 
 oasis_longitudinal_n <- as.data.frame(lapply(oasis_longitudinal_narm_2[8:15], normalize))
 
-#Cambiamos el nombre de la varible educ para que esté igual en ambos conjuntos de datos
+oasis_cross_sectional_n=as.data.frame(lapply(oasis_cross_sectional_narm[4:11], normalize))
+
+````
+
+## Preparación de los datos de entrenamiento y test
+
+Finalmente antes de aplicar el modelo vamos a preparar los datos, para tener dos conjuntos de entrenamiento y test, con las mismas variables, por lo que tendremos que ajustar ambos conjuntos para que tengan exactamente las mismas variables, y nombres de variables. También tendremos que cambiar aquellas variables que seán cualitativas, por numéricas ya que algunos modelos no aceptan variables cualitativas. 
+
+````{r}
+#Cambiamos el nombre de la variable educ para que esté igual en ambos conjuntos de datos
 require(reshape)
 oasis_longitudinal_n = rename(oasis_longitudinal_n, c(EDUC="Educ"))
 
 #Tras normalizarlo añadimos la variable sexo al conjunto
 oasis_longitudinal_n2=cbind(oasis_longitudinal_narm_2$`M/F`, oasis_longitudinal_n)
+oasis_cross_sectional_n2=cbind(oasis_cross_sectional_narm$M.F, oasis_cross_sectional_n)
 
 #Camiamos el nombre de esta variable a Sex
 oasis_longitudinal_n3 = rename(oasis_longitudinal_n2, c("oasis_longitudinal_narm_2$`M/F`"="Sex"))
 names(oasis_longitudinal_n3)
-
-#Hacemos lo mismo en los datos seccionales
-oasis_cross_sectional_n=as.data.frame(lapply(oasis_cross_sectional_narm[4:11], normalize))
-
-oasis_cross_sectional_n2=cbind(oasis_cross_sectional_narm$M.F, oasis_cross_sectional_n)
-
 oasis_cross_sectional_n3 = rename(oasis_cross_sectional_n2, c(`oasis_cross_sectional_narm$M.F`="Sex"))
 names(oasis_cross_sectional_n3)
 
-#Estandarización por puntuación Z
-oasis_longitudinal_z <- as.data.frame(scale(oasis_longitudinal_narm[8:15]))
-
-oasis_seccional_z <- as.data.frame(scale(oasis_cross_sectional_narm[4:11]))
-
-#Borramos la variable CDR
+#Y borramos la variable CDR ya que no aporta información 
 oasis_longitudinal_n4=select(oasis_longitudinal_n3, -CDR)
 oasis_cross_sectional_n4=select(oasis_cross_sectional_n3, -CDR)
 
-#Creamos una variable con los labels de los dos conjuntos
-labels_longitudinal=oasis_longitudinal_narm_2$Group
-labels_seccional=oasis_cross_sectional_narm$Group
+#Convertimos la variable Sex a números f=0 y m=1
+oasis_longitudinal_n4$Sex=factor(oasis_longitudinal_n4$Sex,levels=c("F", "M"),
+                           labels=c(0,1))
 
-str(oasis_cross_sectional_n4)
-str(oasis_longitudinal_n4)
-str(labels_seccional)
-str(labels_longitudinal)
+oasis_cross_sectional_n4$Sex=factor(oasis_cross_sectional_n4$Sex,levels=c("F", "M"),
+                           labels=c(0,1))
+
+
+test=oasis_longitudinal_n4 #Los datos longitudinales serán los del test
+train=oasis_cross_sectional_n4 #Los seccionales el entrenamiento
+#Guardamos los labels en otro vector
+test_labels=oasis_longitudinal_narm_2$Group 
+train_labels=oasis_cross_sectional_narm$Group
+#Lo convertimos a factor 
+test_labels=as.factor(test_labels)
+
 ````
+
+# Entrenamiento de distintos modelos
+
+En este apartado vamos a utilizar distintos modelos, con distintos tipos de algoritmos de machine learning. Para después compararlos y comprobar cuales funcionan mejor y tienen y una mejor precisión a la hora de predecir la demencia. Como objetivo nos hemos propuesto que nuestro modelo cumpla con una precisión mayor del 0.8, un kappa mayor de 0.6 y un AUC de 0.7. Para empezar aplicaremos distintos modelos y veremos cuales complen con la precisión y el kappa mínimo, tras lo cual veremos de estos que cumplen cual tiene el mejor AUC. 
+
+## Algoritmo k-NN
+
+Vamos a empezar utilizando el algoritmo k-NN, que es una algoritmo que utiliza la distancia entre los datos para agruparlos en los distintos grupos, podemos cambiar el valor k, que es la cantidad de observaciones que utiliza el algoritmo para las comparaciones, es decir, si k = 1 el algoritmo utilizará soo una, la observación más parecida para agrupar otra en ese mismo grupo. Vamos a realizar el algoritmo con k=[1:12]. 
+
+````{r}
+
+library(class)
+library(gmodels)
+library(caret)
+
+#Obtenemos el modelo
+knn_1 <- knn(train = train, test = test, cl = train_labels, k = 1) 
+#Lo evaluamos               
+CrossTable(x = test_labels, y = knn_1, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_1, positive = "Demented")
+
+knn_2 <- knn(train = train, test = test, cl = train_labels, k = 2) 
+               
+CrossTable(x = test_labels, y = knn_2, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_2, positive = "Demented")
+
+knn_3 <- knn(train = train, test = test, cl = train_labels, k = 3) 
+               
+CrossTable(x = test_labels, y = knn_3, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_3, positive = "Demented")
+
+knn_4 <- knn(train = train, test = test, cl = train_labels, k = 5) 
+               
+CrossTable(x = test_labels, y = knn_4, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_4, positive = "Demented")
+
+knn_5 <- knn(train = train, test = test, cl = train_labels, k = 7) 
+               
+CrossTable(x = test_labels, y = knn_5, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_5, positive = "Demented")
+
+knn_6 <- knn(train = train, test = test, cl = train_labels, k = 8) 
+               
+CrossTable(x = test_labels, y = knn_6, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_6, positive = "Demented")
+
+knn_7 <- knn(train = train, test = test, cl = train_labels, k = 9) 
+               
+CrossTable(x = test_labels, y = knn_7, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_7, positive = "Demented")
+
+knn_8 <- knn(train = train, test = test, cl = train_labels, k = 12) 
+               
+CrossTable(x = test_labels, y = knn_8, prop.chisq= FALSE)
+confusionMatrix(test_labels, knn_8, positive = "Demented")
+
+````
+
+El modelo con k=9, es el único que pasa nuestro mínimo con una precisión y un kappa mayor a 0.8 y 0.6 respectivamente. Vamos a obtener sus probabilidades para sacar posteriormente el AUC. 
+
+````{r}
+
+knn_7 <- knn(train = train, test = test, cl = train_labels, k = 9, prob=TRUE) 
+prob=attr(knn_7,"prob")
+prob_knn <- ifelse(knn_7 =="Demented", 1-prob, prob) 
+
+
+````
+
+
+## Algoritmo Bayesiano
+
+````{r}
+
+library(e1071)
+library(gmodels)
+
+bayes_model <- naiveBayes(train, train_labels)
+pred_bayes <- predict(bayes_model, test)
+
+CrossTable(pred_bayes, test_labels, prop.chisq = FALSE, prop.t = FALSE,
+dnn = c('predicted', 'actual'))
+
+confusionMatrix(test_labels, pred_bayes, positive = "Demented")
+
+
+````
+Este modelo también pasaría nuestro mínimo. 
+
+## Árboles de decisión (C.50)
+
+````{r}
+library(C50)
+c50_model <- C5.0(train, train_labels)
+prc50=predict(c50_model, test)
+confusionMatrix(test_labels, prc50, positive = "Demented")
+
+````
+
+## Support Vector Machine 
+
+````{r}
+datalabels=cbind(train_labels, train)
+
+tlb=cbind(test_labels, test)
+svm_model <- svm(train_labels ~ ., data = datalabels, probability=TRUE)
+
+pred <- predict(svm_model, tlb, probability=TRUE)
+
+confusionMatrix(test_labels, pred, positive = "Demented")
+
+prob_SVM=attr(pred, "probabilities")
+
+````
+
+## Curvas ROC y valor AUC
+
+Los modelos que han obtenido el mínimo para ser considerados buenos, por los valores kappa y de precisión que nos fijamos, son los generados con árboles de decisión, algortimo bayesiano y SVM, así que con ellos vamos a generar una curva ROC y obtener el valor AUC para ver el más óptimo. 
+
+````{r}
+
+library(ROCR)
+#knn
+predicciones=prediction(prob_knn, test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+
+#bayes
+pred <- predict(bayes_model, test, type="raw")
+predicciones=prediction(pred[,1], test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+#Árboles de decisión
+pred <- predict(c50_model, test, type = "prob")
+predicciones=prediction(pred[,1], test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+#SVM
+predicciones=prediction(prob_SVM[,1], test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+````
+
+# Reajustes de los modelos 
+
+Para mejorar los modelos vamos a realizar varios cambios a ver si obtenemos mejores resultados, aunque estos modelos ya serían válidos para los mínimos que nos fijamos (a excepción del SVM que no supera la precisión y el kappa mínimo). 
+
+## Cambio del tipo de normalización
+````{r}
+
+#Normalización z score
+oasis_longitudinal_z <- as.data.frame(scale(oasis_longitudinal_narm_2[8:15]))
+
+oasis_seccional_z <- as.data.frame(scale(oasis_cross_sectional_narm[4:11]))
+
+
+oasis_longitudinal_z = rename(oasis_longitudinal_z, c(EDUC="Educ"))
+
+#Tras normalizarlo añadimos la variable sexo al conjunto
+oasis_longitudinal_z2=cbind(oasis_longitudinal_narm_2$`M/F`, oasis_longitudinal_z)
+
+#Camiamos el nombre de esta variable a Sex
+oasis_longitudinal_z3 = rename(oasis_longitudinal_z2, c("oasis_longitudinal_narm_2$`M/F`"="Sex"))
+
+
+
+#Tras normalizarlo añadimos la variable sexo al conjunto
+oasis_seccional_z2=cbind(oasis_cross_sectional_narm$M.F, oasis_seccional_z)
+
+#Camiamos el nombre de esta variable a Sex
+oasis_seccional_z3 = rename(oasis_seccional_z2, c("oasis_cross_sectional_narm$M.F"="Sex"))
+
+names(oasis_longitudinal_z3)
+names(oasis_seccional_z3)
+
+#Borramos la variable CDR
+oasis_longitudinal_z4=select(oasis_longitudinal_z3, -CDR)
+oasis_seccional_z4=select(oasis_seccional_z3, -CDR)
+
+
+#Convertimos por último la variable Sex a números f=0 y m=1
+oasis_longitudinal_z4$Sex=factor(oasis_longitudinal_z4$Sex,levels=c("F", "M"),
+                           labels=c(0,1))
+
+oasis_seccional_z4$Sex=factor(oasis_seccional_z4$Sex,levels=c("F", "M"),
+                           labels=c(0,1))
+
+
+test_z=oasis_longitudinal_z4
+train_z=oasis_seccional_z4
+test_labels=oasis_longitudinal_narm_2$Group
+train_labels=oasis_cross_sectional_narm$Group
+test_labels=as.factor(test_labels)
+````
+Una vez normalizados por este nuevo método vamos a aplicar los mismos modelos y ver si funcionan mejor:
+
+````{r}
+
+#knn
+knn_9=knn(train = train_z, test = test_z, train_labels, k=9, prob=TRUE)
+confusionMatrix(test_labels, knn_9, positive = "Demented")
+
+#Bayes
+bayes_model <- naiveBayes(train_z, train_labels)
+pred_bayes <- predict(bayes_model, test_z)
+confusionMatrix(test_labels, pred_bayes, positive = "Demented")
+
+
+
+pred_bayes <- predict(bayes_model, test_z, type="raw")
+predicciones=prediction(pred_bayes[,1], test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+
+#ÁRboles
+c50_model <- C5.0(train_z, train_labels)
+confusionMatrix(test_labels, prc50, positive = "Demented")
+pred <- predict(c50_model, test_z, type = "prob")
+predicciones=prediction(pred[,1], test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+
+#SVM
+datalabels_z=cbind(train_labels, train_z)
+
+tlb_z=cbind(test_labels, test_z)
+model <- svm(train_labels ~ ., data = datalabels_z, probability=TRUE)
+
+pred <- predict(model, tlb_z, probability=TRUE)
+
+confusionMatrix(test_labels, pred, positive = "Demented")
+
+prob_SVM=attr(pred, "probabilities")
+
+
+predicciones=prediction(prob_SVM[,1], test_labels)
+
+perf=performance(predicciones, "tpr", "fpr")
+plot(perf, colorize=TRUE)
+perf.auc <- performance(predicciones, measure = "auc")
+AUC=unlist(perf.auc@y.values)
+AUC
+
+````
+
+
+## Automatic tuning
+
+````{r}
+#Con normalización max/min
+set.seed(123)
+knn=train(train_labels ~ ., data = datalabels, method = "knn")
+knn
+arbol <- train(train_labels ~ ., data = datalabels, method = "C5.0")
+arbol
+bayes <- train(train_labels ~ ., data = datalabels, method = "nb")
+bayes
+svmmodel <- train(train_labels ~ ., data = datalabels, method = "svmRadial")
+svmmodel
+
+#Con normalización z score
+set.seed(123)
+knn_z=train(train_labels ~ ., data = datalabels_z, method = "knn")
+knn_z
+arbol_z <- train(train_labels ~ ., data = datalabels_z, method = "C5.0")
+arbol_z
+bayes_z <- train(train_labels ~ ., data = datalabels_z, method = "nb")
+bayes_z
+svmmodel_z <- train(train_labels ~ ., data = datalabels_z, method = "svmRadial")
+svmmodel_z
+
+````
+Los resultados son muy parecidos con ambas normalizaciones. Los mejores los obtenemos con el algoritmo bayesiano con el parámetro kernel = FALSE, y con el los árboles de decisión ajustando los parámetros del siguiente modo: model=rules,  winnow=FALSE  y trials=20.   
