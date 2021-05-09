@@ -1,0 +1,183 @@
+---
+title: "PEC 4. Desarrollo del trabajo: Fase 2"
+author: "Roberto Saborit Roig"
+date: "6/5/2021"
+subtitle: 'Título del trabajo: Generación de un modelo basado en técnicas de aprendizaje automático para el diagnóstico temprano de la demencia'
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: 2
+  header-includes:
+  - \usepackage{makeidx}
+  - \makeindex
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    df_print: paged
+---
+
+# 1. Descripción del avance del proyecto 
+
+
+# 1.1. Grado de cumplimiento de los objetivos y resultados previstos en el plan de trabajo.
+
+El objetivo general del trabajo es:
+
+- Establecer un modelo basado en técnicas de aprendizaje automático que sea capaz de detectar pacientes con demencia en fase leve y muy leve, y desarrollar una aplicación web para facilitar el acceso al modelo, en Shiny, que es un paquete de R para implementar aplicaciones web. 
+
+Y los objetivos específicos de esta fase del trabajo son los siguientes:
+
+- La realización de la aplicación web con shiny para poder utilizar el modelo, y calcular la probabilidad de padecer demencia sin necesidad de tener conocimientos de R o de programación.  
+
+Los objetivos específicos de la fase anterior se cumplieron. Se aplicaron  algoritmos de aprendizaje automático sobre un conjunto de datos de demencia, y los modelos se han evaluado, consiguiendo los valores mínimos que nos habíamos fijado en algunos de los modelos obtenidos. Tras esto se optimizó el modelo aplicando otra técnica de normalización y realizando atomatic tuning para obtener los mejores modelos realizando cambios en los parámetros de los algoritmos. Los resultados de los modelos generados se pueden cosultar en el apartado 4 de este documento.
+
+En esta segunda fase del desarrollo del trabajo el objetivo era realizar la aplicación web con Shiny, ya que como hemos trabajado en R para este proyecto, la utilización de un paquete de R iba a facilitar la tarea de implementar el modelo obtenido. Para ello la primera tarea sería buscar información y tutoriales para aprender el uso de este paquete y sus posibilidades, ya que no había realizado nunca ninguna aplicación con Shiny hasta el momento. Tras tener unas nociones básicas se planteó el problema a resolver, que sería conseguir que la aplicación permitera introducir a un usuario, los datos relativos al modelo, como la edad, el sexo, etc., y que la aplicación devolviera la probabilidad de tener demencia utilizando el modelo de bayes obtenido en la fase anterior. 
+
+# 1.2. Justificación de los cambios en caso necesario
+
+No hubo ningún cambio, per si se tomó más tiempo en el aprendizaje del uso de Shiny. 
+
+# 2. Relación de las actividades realizadas
+
+# 2.1 Actividades previstas en el plan de trabajo
+
+La primera actividad prevista en el plan de trabajo era aprender del uso del paquete Shiny de R para la aplicación web. Para ello se recurrió a seguir el tutorial de la página de Shiny, que se puede encontrar en el siguiente enlace:
+
+<https://shiny.rstudio.com/tutorial/>
+
+Además se consultaron otras fuentes de información como blogs y videos. 
+
+La segunda actividad fue realizar la aplicación con Shiny. Lo primero fue plantear lo que queríamos que introdujera el usuario y que reusltado debía obtener. Para lo primero, el usuario introduciría los datos de las variables que utiliza el modelo, y de esta forma devolvería las probabilidades de tener o no demencia. 
+
+# 2.2 Actividades no previstas y realizadas o programas
+
+No se realizaron actividades no previstas en el cronograma. 
+
+# 3.  Relación de las desviaciones en la temporización y acciones de mitigación si procede y actualización del cronograma si procede
+
+En el cronograma previsto se dejó 7 días para el aprendizaje del paquete Shiny, aunque finalmente se utilizaron más días. Una vez realizada esta tarea se generaría la aplicación con este paquete en Rstudio, para lo que tendríamos 3 semanas, el resto de días nos servirían para documentar el proceso en la memoria. Los objetivos se cumplieron en el tiempo previsto, y por tanto el coronograma no ha cambiado (Figura 2). En la siguiente fase se terminará de escribir la memoria. 
+
+![Diagrama de Gantt sobre el plan de trabajo del proyecto ](C:/Users/Usuario/Modelo-predictivo/diagrama_gantt.PNG "Figura 2")
+
+# 4.  Listado de los resultados parciales obtenidos hasta el momento 
+
+El código utilizado para crear la aplicación es el siguiente:
+
+### ui.R
+
+```{r, eval=FALSE}
+
+library(shiny)
+
+shinyUI(fluidPage(
+
+    titlePanel("Introduce tus datos"),
+
+    sidebarLayout(
+        sidebarPanel(
+            numericInput("slider_input",
+                        "Edad",
+                        min = 1,
+                        max = 100,
+                        value = 60),
+            selectInput("select_input", label = "Sexo", 
+                        choices = list("Hombre" = 1, "Mujer" = 2), 
+                        selected = 1),
+            selectInput("select_input_2", label = "Estatus socioeconomico", 
+                        choices = list("bajo" = 1, "media bajo" = 2, 
+                                       "medio" = 3, "media alto" = 4,
+                                       "alto" = 5), 
+                        selected = 1),
+            selectInput("select_input_3", label = "Nivel de estudios", 
+                        choices = list("ESO" = 1, "Bachiller" = 2, 
+                                       "FP" = 3, "Grado" = 4, "Master" = 5), 
+                        selected = 1),
+            sliderInput("slider_input_2",
+                        "Puntuacion en el MMSE",
+                        min = 0,
+                        max = 30,
+                        value = 27, post = " puntos"),
+            sliderInput("slider_input_3",
+                        "eTIV",
+                        min = 1000,
+                        max = 2000,
+                        value = 1500),
+            sliderInput("slider_input_4",
+                        "nWBV",
+                        min = 0.00,
+                        max = 1.00,
+                        value = 0.50),
+            sliderInput("slider_input_5",
+                        "ASF",
+                        min = 0.0,
+                        max = 1.5,
+                        value = 1, post = " puntos"),
+        ),
+
+        mainPanel(
+            h1("Probabilidad de tener demencia"),
+            textOutput("single_slider_io")
+        )
+    )
+))
+
+```
+
+### sever.R
+
+```{r, eval=FALSE}
+
+library(shiny)
+library(e1071)
+library(dplyr)
+
+load("D:/1. Bioinformatica/2 cuatri/TFM/Resultados/bayes_model.RData")
+
+oasis_cross_sectional <- 
+    readr::read_csv("D:/1. Bioinformatica/2 cuatri/TFM/DATOS/oasis_cross-sectional.csv")
+oasis_cross_sectional_narm=na.omit(oasis_cross_sectional)
+datos_oasis <- oasis_cross_sectional_narm %>% select(-ID, -Hand, -CDR, -Delay)
+datos_oasis$`M/F`=factor(datos_oasis$`M/F`,levels=c("F", "M"),
+                                 labels=c(0,1))
+
+datos_oasis = rename(datos_oasis, c("Sex"=`M/F`))
+
+shinyServer(function(input, output) {
+    
+    output$single_slider_io = renderPrint({
+        data_guest <- data.frame(Age=as.numeric(input$slider_input),
+                         Sex=as.numeric(input$select_input),
+                         Educ=as.numeric(input$select_input_2), 
+                         SES=as.numeric(input$select_input_3), 
+                         MMSE=as.numeric(input$slider_input_2), 
+                         eTIV=as.numeric(input$slider_input_3), 
+                         nWBV=as.numeric(input$slider_input_4), 
+                         ASF=as.numeric(input$slider_input_5))
+        data1=rbind(data_guest, datos_oasis)
+        data1$Sex=as.numeric(data1$Sex)
+        data2=as.data.frame(scale(data1))
+        data_guest=data2[1,]
+        predictions=predict(bayes_model, data_guest, type="raw")
+        prob_dementia=predictions[2]
+        prob_dementia
+        if(prob_dementia<0.2) {
+            print(paste0("La probabilidad de padecer demencia en fase leve es baja: ", 
+                      prob_dementia))
+        } else if(prob_dementia<0.7) {
+            print(paste0("La probabilidad de padecer demencia en fase leve es moderada: ", 
+                         prob_dementia))
+        } else { 
+            print(paste0("La probabilidad de padecer demencia en fase leve es alta: ", 
+                         prob_dementia))
+        }
+        
+
+    })
+    
+})
+
+```
+
+El aspecto de la aplicación es el siguiente: 
+
+![Aplicación creada con Shiny ](C:/Users/Usuario/Modelo-predictivo/app_demencia.PNG "Figura 2")
